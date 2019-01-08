@@ -14,3 +14,4 @@ fs::dir_create(paste(md,'Files',sep='/'))
 fs::dir_ls('~/Documents/Aflareglur/Muppet_HCR/HCR/Had/Files/',regexp = 'dat') %>% 
   fs::file_copy(paste(md,'Files',sep='/'),overwrite = TRUE)
 
+source('data.R')
