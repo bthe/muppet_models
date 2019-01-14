@@ -1,6 +1,12 @@
 library(rmuppet)
 library(tidyverse)
 
+old_rby <- 
+  read_csv('https://data.hafro.is/assmt/2018/haddock/summary.csv') %>% 
+  set_names(.,tolower(names(.))) %>% 
+  gather(type,val, -year)
+
+theme_set(theme_bw())
 tyr <- 2018
 out_dir <- paste(md,'out',sep='/')
  
@@ -79,7 +85,7 @@ callMuppet(ind='params/icehad.dat.opt','nox',run_dir = md,
 
 readr::read_lines(paste(md,'params','icehad.dat.opt',sep='/')) %>% 
   rmuppet:::line_replace(60, '# Number of simulations years') %>% 
-  rmuppet:::line_replace('Files/hadprognosis.dat.biorule.assyear', '#Prognosis file') %>% 
+  rmuppet:::line_replace('Files/hadprognosis.dat.biorule.adyear', '#Prognosis file') %>% 
   readr::write_lines(paste(md, 'params','icehad.prognosis',sep='/'))
 
 readr::read_lines(paste(md,'Files','outputparameters.dat',sep='/')) %>% 
@@ -146,25 +152,30 @@ model_bubble_plot <-
 
 
 ## model output
-
-mcmc_results %>% 
-  filter(filename %in% c('ssb','hcrrefbio')) %>% 
+mcmc_summary <- 
+  mcmc_results %>% 
+  filter(filename %in% c('ssb','hcrrefbio','n1st'),year <= tyr) %>% 
   group_by(year,filename) %>% 
-  summarise(m=median(value),
+  summarise(val=median(value),
             u=quantile(value,0.95),
-            l=quantile(value,0.05)) %>% 
-  ggplot(aes(year,m,col=filename)) + 
-  geom_ribbon(aes(ymax=u,ymin=l,fill=filename),alpha=0.1) +
-  geom_line() + 
-  theme_minimal()
+            l=quantile(value,0.05)) 
 
 model_bio_plot <- 
   rby %>% 
-  filter(model != 'vpa',year <= tyr) %>% 
+  #filter(model %in% c('logit_length','vpa'),year <= tyr) %>% 
+  filter(model %in% c('logit_length'),year <= tyr) %>% 
   #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
-  select(model,year,SSB=Spawningstock) %>% #,`B45cm+`) %>% 
+  select(model,year,SSB=Spawningstock,CbioR) %>% #,`B45cm+`) %>% 
   gather(type,val,-c(year,model)) %>% 
-  ggplot() + geom_line(aes(year,val,col=type,lty=model)) + 
+  ggplot() + 
+  geom_ribbon(aes(year,ymin=l,ymax=u,fill = filename),
+              data=mcmc_summary %>% filter(filename != 'n1st'),
+              alpha = 0.5) +
+  geom_line(aes(year,val,col = type)) + 
+  geom_line(aes(year,val,col = type),lty=2,
+            data = old_rby %>% 
+              filter(type %in% c('ssb','refbio')) %>% 
+              mutate(type = ifelse(type == 'refbio','CbioR','SSB'))) +
   geom_vline(xintercept = tyr,lty=2,col='gray') +
   geom_hline(yintercept = 45) + 
   geom_hline(yintercept = 59,lty=2) + 
@@ -230,3 +241,34 @@ ssb_rec_plot <-
   ggplot(aes(ssbl,Recruitment)) + geom_text(aes(label=year-1)) + 
   expand_limits(x=0, y=0) + 
   facet_wrap(~model)
+
+
+mcmc_results %>% 
+  filter(filename == 'parameter',
+         !(variable %in% c('AbundanceMultiplier','Catchlogitage50','Catchlogitslope')),
+         !(year %in% 5:6)) %>% 
+  mutate(value = ifelse(variable == 'estSSBRecParameters',exp(value),value),
+         variable = ifelse(variable == 'estSSBRecParameters',
+                           forcats::fct_recode(as.character(year),
+                                        Rmax="1",ssbbreak = "2",
+                                        `Recruitment CV`='3',
+                                        rho='4') %>% as.character(),
+                           variable)) %>% 
+  ggplot(aes(value)) + geom_histogram() + facet_wrap(~variable,scale='free')
+
+
+mcmc_results %>% 
+  filter(filename == 'parameter',
+         !(variable %in% c('AbundanceMultiplier','Catchlogitage50','Catchlogitslope')),
+         !(year %in% 5:6)) %>% 
+  mutate(value = ifelse(variable == 'estSSBRecParameters',exp(value),value),
+         variable = ifelse(variable == 'estSSBRecParameters',
+                           forcats::fct_recode(as.character(year),
+                                               Rmax="1",ssbbreak = "2",
+                                               `Recruitment CV`='3',
+                                               rho='4') %>% as.character(),
+                           variable)) %>% 
+  select(iter,variable, value) %>% 
+  spread(variable,value) %>%
+  select(-iter) %>% 
+  GGally::ggpairs()

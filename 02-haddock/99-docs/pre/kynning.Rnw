@@ -1,0 +1,108 @@
+\documentclass[sansserif]{beamer} % options: gray
+
+
+
+% HANDOUTS
+%\documentclass[handout,mathserif]{beamer} % options: gray
+\geometry{paperwidth=170mm,paperheight=105mm}
+\usepackage{scrextend}
+\changefontsizes{10pt}
+\usetheme{CambridgeUS} %sidebar
+\usecolortheme{dolphin}
+\definecolor{hafroblar}{HTML}{0076a9}
+\definecolor{hafrograr}{HTML}{5c6670}
+\setbeamercolor*{palette primary}{use=structure,fg=white,bg=hafrograr!25}
+\setbeamercolor*{palette secondary}{use=structure,fg=white,bg=hafrograr!50}
+\setbeamercolor*{palette tertiary}{use=structure,fg=white,bg=hafroblar}
+\setbeamercolor*{palette quaternary}{fg=white,bg=hafrograr!25}
+
+\setbeamercolor{frametitle}{bg=white,fg=hafrograr}
+\setbeamercolor{title}{bg=white,fg=hafroblar}
+
+
+\usepackage{appendixnumberbeamer}
+%\usecolortheme{rose}
+
+
+
+\usepackage{graphicx}
+\usepackage{amssymb,amsmath}
+\usepackage[T1]{fontenc}
+\usepackage[icelandic]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{bm,booktabs}
+\usepackage{textpos}
+\usepackage{marvosym}
+\usepackage{subfigure}
+\usepackage{pgfpages}
+\usepackage{multirow}
+\usepackage{wrapfig}
+
+\usepackage{multirow,adjustbox,rotating}
+
+\usepackage{tikz,makecell}
+\usetikzlibrary{arrows,decorations.pathmorphing,decorations.footprints,
+fadings,calc,trees,mindmap,shadows,decorations.text,patterns,positioning,shapes,matrix,fit}
+%\input{graphical_settings}
+\tikzset{
+  invisible/.style={opacity=0},
+  visible on/.style={alt={#1{}{invisible}}},
+  alt/.code args={<#1>#2#3}{%
+    \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+  },
+}
+
+% hvis man vil har eg. 4 slides på en side
+%\pgfpagesuselayout{4 on 1}[a4paper,border shrink = 5mm, landscape]
+
+\definecolor{lgrey}{RGB}{245,245,245}
+\setbeamercolor{block body}{fg=black,bg=lgrey}
+
+\newcommand{\bs}{\boldsymbol}
+\newcommand{\bi}{\begin{itemize}\item}
+\newcommand{\ei}{\end{itemize}}
+\newcommand{\eq}[1]{\begin{equation*} #1 \end{equation*}}
+\newcommand{\ea}[1]{\begin{eqnarray} #1 \end{eqnarray}}
+\newcommand{\vs}{\vspace{2mm}}
+
+\logo{\includegraphics[height=0.8cm]{hafro_logo}}
+\newcommand{\nologo}{\setbeamertemplate{logo}{}}
+
+
+\definecolor{Red}{rgb}{0.9,0,0.1}
+
+\title[Aflareglur]{Aflaregla fyrir ýsu á Íslandsmiðum}
+\subtitle{\small }
+\author[Bjarki]{Bjarki Þór Elvarsson og Höskuldur Björnsson}
+\date{18. janúar 2019} % beskidt .. men det virker
+\institute[Hafró]{Hafrannsóknastofnun}
+\beamertemplatenavigationsymbolsempty % fjerner pdf-indhold, til hvis der bare skal printes slides ud
+
+%\AtBeginSection[]{
+%\begin{frame}<beamer>
+%   \frametitle{What next...}
+%   \tableofcontents[currentsection]
+% \end{frame}
+%}
+
+\theoremstyle{example}
+\newtheorem{exis}[theorem]{Dæmi}
+\renewenvironment{example}{\begin{exis}}{\end{exis}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+{
+\nologo
+\frame{
+
+\titlepage
+
+\begin{tikzpicture}
+\node[inner sep=0pt] (matis) at (12,0)
+    {\includegraphics[width=.25\textwidth]{hafro_logo}};
+
+\end{tikzpicture}
+}}
+
+\end{document}
+
