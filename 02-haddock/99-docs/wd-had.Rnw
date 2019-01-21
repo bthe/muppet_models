@@ -1,4 +1,92 @@
 \documentclass[a4paper,11pt,  english]{article}
+
+<<setup, include=FALSE,echo=FALSE>>=
+#knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, error = FALSE,fig.width = 10, fig.height = 7)
+options(knitr.kable.NA = '')
+library(mar)
+library(patchwork)
+library(rmuppet)
+library(knitr)
+library(kableExtra)
+library(forcats)
+library(viridis)
+mar <- connect_mar()
+tyr <- 2018
+theme_set(theme_bw())
+
+pal <- c("#A6CEE3", "#1F78B4", "#B2DF8A", "#33A02C",
+           "#FB9A99", "#E31A1C", "#FDBF6F", "#FF7F00",
+           "#CAB2D6", "#6A3D9A", "#FFFF99", "#B15928")
+  pal <- rep(pal, 1000)
+  
+  
+old_rby <- 
+  read_csv('https://data.hafro.is/assmt/2018/haddock/summary.csv') %>% 
+  set_names(.,tolower(names(.))) %>% 
+  gather(type,val, -year)
+@
+
+
+<<cache=TRUE>>=
+tyr <- 2018
+x <- 1
+source('/u2/reikn/Tac/2018/02-ysa/R/01-plots_and_tables.R')
+source('/u2/reikn/Tac/2018/02-ysa/R/02-management.R')
+source('/u2/reikn/Tac/2018/02-ysa/R/03-data_available.R')
+source('/u2/reikn/Tac/2018/02-ysa/R/04-indices4plot.R')
+source('/u2/reikn/Tac/2018/02-ysa/R/06-surveyplots.R')
+#source('/u2/reikn/Tac/2018/02-ysa/R/07-catch_data.R')
+#source('R/08-model.R')
+
+tmp_func <- function(x){
+  val = gsub('.csv','',x)
+  read_csv(paste0('/u2/reikn/Tac/2018/02-ysa/tables/',x)) %>% 
+    gather('age',value=value,-year,convert = TRUE) %>% 
+    mutate(data=val,
+           value = ifelse(value==-1,NA,value))
+}
+## year age cno cwt swt mat ssbwt
+dat <- 
+  tmp_func('catage.csv') %>% 
+  bind_rows(tmp_func("wcatch.csv")) %>% 
+  bind_rows(tmp_func("maturity.csv")) %>% 
+  bind_rows(tmp_func("smb.csv")) %>%
+  bind_rows(tmp_func("smh.csv")) %>% 
+  bind_rows(tmp_func("wstock.csv")) %>% 
+  spread(data,value,fill = NA) 
+
+#curr.lnd <- 
+#landings %>%
+#  filter(year==tyr-1) 
+#curr.lnd <- round(set_names(x = curr.lnd$c,nm = curr.lnd$country))
+load('fit.Rdata')
+load('res_agg.Rdata')
+load('refpoint.Rdata')
+mcmc_summary <- 
+  fit$mcmc_results %>%
+  filter(variable %in% c('Spawningstock','N3','RefF','CalcCatchIn1000tons','HCRrefbio','N1st'),
+         year <= tyr) %>% 
+  bind_rows(fit$mcmc_results %>%
+              select(-filename) %>% 
+              filter(variable %in% c('CalcCatchIn1000tons','HCRrefbio'),year <= tyr) %>% 
+              spread(variable, value) %>% 
+              mutate(variable = 'HR',
+                     value = CalcCatchIn1000tons/HCRrefbio) %>% 
+              select(-c(CalcCatchIn1000tons,HCRrefbio))) %>% 
+  group_by(year,variable) %>% 
+  summarise(model = 'logit_length',
+            m=median(value), 
+            uu=quantile(value,0.75),
+            ll=quantile(value,0.25),
+            u=quantile(value,0.95),
+            l=quantile(value,0.05)) 
+
+
+
+
+@
+
 \usepackage[T1]{fontenc}
 \usepackage[english]{babel}
 \usepackage{natbib}
@@ -75,16 +163,6 @@ pdfkeywords={}]{hyperref}
 %%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 <<echo=FALSE,message=FALSE,warning=FALSE>>=
-library(tidyverse)
-library(rmuppet)
-library(mar)
-library(knitr)
-library(kableExtra)
-library(patchwork)
-library(forcats)
-library(viridis)
-mar <- connect_mar()
-tyr <- 2018
 
 landings <- 
   tbl(mar,'lices') %>% 
@@ -180,6 +258,76 @@ Spatial patterns of fishing activity and catch distribution are produced from lo
 
 Haddock fishing areas were traditionally similar from one year to another, primarily along the south and the west coast. Since 2000 higher proportion of fishable part of the stock inhabits the waters north of Iceland and (Figure A.2.1). The share of longliners in the fisheries has also increased, which do not fish in the same areas as trawlers (figure A.2.2), partly because they can not operate in the same areas but also because shallow water areas that are closed for trawling are open for longliners.
 
+
+<<advplot, cache=TRUE,echo = FALSE,message = FALSE, warning = FALSE,fig.width=8,fig.height=8,cache=TRUE, fig.cap='Haddock in 5a. Comparison of the realised catches and the set TAC for the fishing (top) and the effective species transformation per fishing year.'>>=
+tmp <- 
+  tac_hist %>% 
+  mutate(yr = gsub('([0-9]+).+','\\1',Year) %>% as.numeric()) %>% 
+  filter(yr < 2014) %>% 
+  group_by(`ICES advice`) %>% 
+  filter(yr == min(yr))
+
+tmp <- 
+  data_frame(Year = c('1999/2000','2000/2001','2008/2009','2013/2014'),
+             type = c('F<Fmed','F<Fpa','F<0.35','Aflaregla'),
+             value = c(35000,30000,93000,38000))
+
+tac_hist %>% 
+  mutate(yr = gsub('([0-9]+).+','\\1',Year) %>% as.numeric(),
+         `ICES landings for the fishing year` = ifelse(is.na(`ICES landings for the fishing year`),
+                                                             `ICES landings for the calendar year`,
+                                                             `ICES landings for the fishing year`)) %>% 
+  filter(yr >1990) %>% 
+  select(Year, Aflamark=`Agreed TAC`,
+         `Landaður afli`=`ICES landings for the fishing year`) %>% 
+  gather(col,value,-Year) %>% 
+  ggplot() + geom_line(aes(Year,value/1e3,col=col,group=col))  + 
+  geom_point(data=tmp,aes(Year,value/1e3)) + 
+  ggrepel::geom_label_repel(data=tmp,aes(Year,value/1e3,label = type),
+                            arrow = arrow(length = unit(0.02, "npc")),
+                            force = 10,
+                            ylim = c(NA,25)) + 
+  theme_bw()+ 
+  labs(col='',x='',y='Landings (in kt)') + 
+  theme(legend.position = c(0.2,0.8),
+        legend.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + 
+  scale_color_manual(values = c('red','blue'))+
+  expand_limits(y=0) +
+      mar:::kvoti_stada_summarised(mar) %>%
+  filter(fteg==2) %>% 
+  collect(n=Inf) %>% 
+  mutate(timabil = ifelse(str_sub(timabil,1,1) %in% "9",
+                          paste0(1900+as.integer(str_sub(timabil,1,2)),"/",str_sub(timabil,3)),
+                          paste0(2000+as.integer(str_sub(timabil,1,2)),"/",str_sub(timabil,3)))) %>% 
+  arrange(fteg, timabil) %>% 
+  head(-1) %>% 
+  ungroup() %>% 
+  mutate(#m_ara = n_ar,
+         m_p = 100*(m_ara-n_ar)/varanlegt,
+         til_p = 100*tilf/varanlegt,
+         m_ara = (m_ara-n_ar)/1e3,
+         tilf = tilf/1e3) %>% 
+  select(timabil,tilf,m_ara,
+         m_p,til_p) %>% 
+  gather(col,value,-timabil) %>%
+  filter(col %in% c('tilf','m_ara')) %>% 
+  mutate(col=ifelse(col=='m_ara','Between years',
+                    ifelse(col=='m_p','Between years (%)',
+                           ifelse(col=='tilf',' Between species',
+                                  ' Between species (%)')))) %>% 
+  ggplot(aes(timabil,value)) + geom_bar(stat='identity') + 
+  facet_wrap(~col,ncol=1,scale='free_y') + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        strip.background = element_blank()) +
+  labs(x='Fishing year',y='Species transformation (in kt)') +
+  plot_layout(ncol=1)
+
+@
+
+
 \subsection{Ecosystem drivers}
 Sandeel abundance has been low in Icelandic waters since 2005.  Sandeel is an important part of the diet of haddock in some areas so this decrase might have contributed to slow growth. Sandeel are not harvested by humans but are an important prey species for some demersal fish and marine mammals, like minke whale. 
 
@@ -190,7 +338,7 @@ E-ð um hitastigsbreytingar og stækkun
 Annual estimates of landings of haddock from Icelandic waters are available since 1905 (Figure \ref{fig:landings}). The historical information are largely derived from Statistical Bulletin, with unknown degree of accuracy, and retrieved from Statlant.  For the period between 1980 to 1993 landings of Icelandic vessels were recorded by Fiskifélagið (a precursor to the Directorate of Fisheries). 
 The more recent landings (from 1993 onwards) statistics are from the Directorate of Fisheries as annually reported to ICES and after 2013 all landings in 5a are recorded by the Directorate, while foreign vessel landings were obtained from Statlant.  
 
-<<landings, fig.width=5,fig.height=4, echo=FALSE, message=FALSE, error=FALSE, warning=FALSE, fig.cap='Historical landings of Haddock in area 5a (Icelandic waters).'>>=
+<<landings, fig.width=5,fig.height=4, echo=FALSE, message=FALSE, error=FALSE, warning=FALSE, fig.cap='Haddock in 5a. Historical landings of Haddock in area 5a (Icelandic waters).'>>=
   landings %>% 
   mutate(country = ifelse(ifelse(is.na(country),' ',country)=='Iceland','Iceland','Other nations')) %>%
   group_by(year,country) %>% 
@@ -209,7 +357,7 @@ The more recent landings (from 1993 onwards) statistics are from the Directorate
 The estimates by the Directorate of Fisheries are based on full census of weighting of fish on the dock when landed or in fish processing factories prior to processing. Information on the landings of each trip are stored in a centralised database of which the Marine Research Institutes (MRI) employees have full access. Captains are required to keep an up-to-date logbooks that contain information about timing (day and time), location (latitude and longitude), fishing gear and amount of each  species in  each fishing operation. The Directory of Fisheries and the Coastguard can during each fishing trip check if amount of fish stored aboard the vessel matches what has been recorded in the logbooks, in part to act as a deterrent for potential black landings.
 Nearly all haddock is landed gutted and converted to ungutted using the conversion factor 0.84. The real gutting factor is on the average lower so the amount of haddock landed is overestimated. That does though not matter as all the bookkeeping of catch is in terms of gutted fish and the reference to ungutted catch is just an gutted divided by 0.84.
 
-Discards are illegal in Icelandic waters. A discard monitoring program of the MRI, designed to estimate highgrading, has been in place since 2001, but estimates of discards have been made prior to that period \citep{MFRIdiscards}. The method used since 2001 is based on getting comparable shore and sea samples, using the difference in length distribution to estimate the amount of discard. It is based on ad hoc selection of boats where comparison of length measured at port is followed by length measured at sea of the same boat if fishing area is the same. This is however only feasible for boats that take short trips. For other fleet component the estimates are based on overall difference in length measured at sea vs port. The problem seems to be greatest when haddock recruits are large and hence fish below commercial landings size are large part of the stock. 
+Discards are illegal in Icelandic waters. A discard monitoring program of the MRI, designed to estimate highgrading, has been in place since 2001, but estimates of discards have been made prior to that period \citep{MFRIdiscards}. The method used since 2001 is based on getting comparable shore and sea samples, using the difference in length distribution to estimate the amount of discard. It is based on ad hoc selection of boats where comparison of length measured at port is followed by length measured at sea of the same boat if fishing area is the same. This is however only feasible for boats that take short trips. For other fleet component the estimates are based on overall difference in length measured at sea vs port. The problem seems to be greatest when haddock recruits are large and hence fish below commercial landings size are large part of the stock. This is evident from figure [MYND FRÁ GUÐJÓNI]. Explorations to the effect of the discards have suggested including discards in the assessment did not alter the perception of the stock substantially. 
 
 
 
@@ -217,16 +365,99 @@ Discards are illegal in Icelandic waters. A discard monitoring program of the MR
 \paragraph{Research surveys}
 Information on abundance and biological parameters from Haddock in 5a is available from two surveys, the Icelandic groundfish survey in the spring and the Icelandic autumn survey. 
 
+The Icelandic spring groundfish survey, which has been conducted annually
+since 1985, covers the most important distribution area of the haddock fishery.
+In addition to the spring survey, an autumn survey in Icelandic waters was commenced in 1996 and expanded in 2000 to include deep water stations. The autumn survey has been conducted annual with the exception of 2011 where a full autumn survey was not conducted in 2011. A detailed description of the Icelandic spring and autumn groundfish
+surveys is given in the Stock Annex. Figure \ref{fig:fourplot} shows both a recruitment index
+and the trends in various biomass indices. Survey length distributions are shown in
+Figure \ref{fig:surveyldistplot} (abundance) and changes in spatial distribution in Figures \ref{fig:surveybyarea} and \ref{fig:surveylocationplot}.
+
+Both surveys show much increase total biomass between 2002 and 2005 but considerable decrease from 2007–2010.
+The difference in perception of the stock between the surveys is that the autumn survey shows less
+contrast between periods of large and small stock. The 2015 estimate from the autumn survey exhibited substantially lower biomass compared to adjacent years. The contrast between the surveys appears to be starker when looking at the biomass of 60 cm and larger. The autumn survey index shows at downwards trend while the spring survey and upwards trend. 
+
+
+Age disaggregated indices from the March survey are given in Table \ref{tab:springagetable} and indices from the
+autumn survey in Table \ref{tab:autagetable}. Abundance of age groups 3–7 in the 2016 March survey is low while
+age 9 is among the highest indices observed. The index of age 12 and 13 (2003 cohort) is
+much higher than seen before (large part of 11+ in the March survey), but that cohort will though not
+contribute much to the landings. Year classes 2008 and 2009 (age 8 and 7) are now close to average,
+mostly due to reduced fishing mortality in recent years but those year classes were originally small. 
+
+<<fourplot, fig.cap='Haddock in 5.a. Indices in the Spring Survey (March) 1985 and onwards (line shaded area) and the autumn survey (point ranges).' >>=
+four_plot
+@
+
+<<surveyldistplot, fig.cap='Haddock in 5.a. Length disaggregated abundance indices from the spring survey (March) 1985 and onwards, and the Autumn survey rom 1996 onwards (execept for 2011).'>>=
+survey_ldist_plot
+@
+
+<<surveybyarea, fig.cap='Haddock in 5.a. Changes in '>>=
+survey_by_area
+vp <- grid::viewport(width = 0.3, height = 0.3, x = 0.2, y = 0.85)
+print(region.plot,vp = vp)
+
+@
+
+
+<<surveylocationplot, fig.cap='Haddock in 5.a. Location of haddock in the March survey, bubble sizes are relative to catch sizes.'>>=
+survey_location_plot + theme(legend.position = 'top') + labs(size='Catch')
+@
+
+
+
+
 \paragraph{Catch and effort series}
+Catch per unit of effort data (figure \ref{fig:cpueplot}) give somewhat different picture of the development of the stock than the surveys and assessment, much less increase after 2000 and much less decrease in recent years. The current assessment coupled with the relatively high CPUE, in recent years, confirms fishers’s view that is now easier to catch haddock. The discrepancy observed between CPUE and stock size has not been explained, but a plausible explation might be related to a couple reasons. 
+Area inhabited by the stock increased so the density in the traditional fishing area did not increase in relation to the stock size. 
+First when the stock was large slower growth lead to larger proportion of the stock below “fishable size” 45cm limiting the areas where large haddock could be caught without too much bycatch of small haddock. 
+The opposite has happened in recent years, faster growth and poor recruitment lead to the fisheries not limited by small haddock. 
+Bycatch issues, but haddock is often caught as bycatch or one of the species in mixed fisheries where the goal is certain mixture of species. 
 
+<<cpueplot, fig.cap="Catch per unit of effort in the most important gear types. ">>=
+## CPUE plot
 
+  tbl(mar,'had_catch') %>% 
+  filter(gear %in% c('BMT','LLN','GIL','DSE'),year>1984,year < tyr) %>% 
+  mutate(effort = nvl(towtime/60,nvl(hooks/1000,nvl(nr_net,1)))) %>%
+  mutate(effort = ifelse(gear == 'DSE',1,effort)) %>% 
+  mutate(cpue = ifelse(effort>0,catch/effort,0)) %>% 
+  filter(cpue>0) %>% 
+    group_by(year,gear) %>% 
+  summarise(cpue = mean(cpue)) %>% 
+  collect(n=Inf) %>% 
+  bind_rows(tbl(mar,'had_catch') %>% 
+              filter(gear %in% c('BMT','LLN','GIL','DSE'),year>1984,
+                     catch/total > 0.5, year < tyr) %>% 
+              mutate(effort = nvl(towtime/60,nvl(hooks/1000,nvl(nr_net,1)))) %>%
+              mutate(effort = ifelse(gear == 'DSE',1,effort)) %>% 
+              mutate(cpue = ifelse(effort>0,catch/effort,0)) %>% 
+              filter(cpue>0) %>% 
+              group_by(year,gear) %>% 
+              summarise(cpue = mean(cpue)) %>% 
+              collect(n=Inf), 
+            .id = 'Prop') %>% 
+  ungroup() %>% 
+  ggplot(aes(year,cpue,lty=Prop)) + 
+  geom_line() + 
+  scale_linetype_manual(labels = c('All records','> 50% of catch'),values = 1:2) +
+  facet_wrap(~gear,scale='free_y') + 
+  theme_bw() + 
+  labs(y='Catch per unit effort',x='Year',lty='') +
+  theme(legend.position = c(0.1,0.8),
+        legend.background = element_blank(),
+        strip.background = element_blank())
+
+@
 \subsubsection{Weights, maturities, growth}
 Icelandic haddock can reach 15 years age or more but individuals older than 9-10 years are uncommon.  They do though become more common after a period of low fishing effort as occurred in around 1980 and 1985-1986, 9 and 10 year old haddock accounted for substantial part of the catch. Individuals from the stock can reach 100cm but mean length at age approches 80cm (5kg) for 13-15 years old fish. Most haddock mature from 4-7 years age and 50$\%$ of age 4 haddock are mature on the average. Age 4 haddock is also approximately half recruited to the fisheries. Mean weight at age has been seen to have fluctate with time leading to substantial variation in yearclasses recruitment to the fisheries. 
 
 \paragraph{Growth}
+Mean weight at age in the catch is shown in Table \ref{tab:catwttable} and Figure \ref{fig:catwtplot}. Mean weight at age in the stock is given in Table \ref{tab:stockwttable} and Figure \ref{fig:stockwtplot}. Those data are obtained from the groundfish survey in March and are also used as mean weight at age in the spawning stock. Both stock and catch weights have been increasing in recent years, after being very low when the stock was large between 2005 and 2009. Higher mean weight at age is most apparent for the younger haddock from the small cohorts (2008–2013), but mean weight of the old fish is now also average. Mean weight of the 2014 cohort was more lower than that of recent small year classes but above average for a large cohorts.
 
-<<>>=
+<<sweigthatage, fig.width=10,fig.height=10, fig.cap='Weight at age observed in the spring survey'>>=
 dat %>% 
+  mutate(yc = year - age) %>% 
   mutate(age_lab = ordered(15 - age,levels=1:15,labels=15:1)) %>% 
   filter(age %in% 1:10,year %in% 1985:2018)%>% 
   group_by(age) %>% 
@@ -236,6 +467,9 @@ dat %>%
 @
 
 \paragraph{Maturities}
+Maturity-at-age data are given in Table \ref{tab:mattable} and Figure \ref{fig:matplot}. Those data are obtained from the groundfish survey in March. Maturity-at-age of the youngest age groups has been decreasing in recent years while mean weight at age has been increasing so matuSexual maturity-at-age in the stock (from the March survey). The numbers for age 10 only apply to the spawning stock. Maturity by size has been decreasing and the most likely explanation is large proportion of those age groups north of Iceland where proportion mature has always been low.
+
+
 
 
 \subsubsection{Assessment model}
@@ -245,32 +479,319 @@ The assessment model used is a statistical catch--at-age model. The model runs f
 
 \paragraph{Baseline run}
 
-<<>>=
-
+<<icesplot, fig.width=10,fig.height=8,fig.cap='Haddock in 5a. Base model assessment'>>=
+  fit$rby %>% 
+  #filter(model %in% c('logit_length','vpa'),year <= tyr) %>% 
+  filter(model %in% c('logit_length'),year <= tyr) %>% 
+  mutate(HR = CalcCatchIn1000tons/CbioR) %>% 
+  #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
+  select(model,year,Spawningstock,HCRrefbio=CbioR,HR,RefF,CalcCatchIn1000tons,CatchIn1000tons,N1st) %>% #,`B45cm+`) %>% 
+  gather(type,val,-c(year,model)) %>% 
+  mutate(group = forcats::fct_recode(type, 
+                                     `SSB/B45cm+`="Spawningstock",
+                                     `SSB/B45cm+`="HCRrefbio",
+                                     `HR/F4-7`="HR",
+                                     `HR/F4-7`="RefF",
+                                     Landings="CalcCatchIn1000tons",
+                                     Landings="CatchIn1000tons",
+                                     Recruitment="N1st")) %>% 
+  ggplot() + 
+  geom_ribbon(aes(year,ymin=l,ymax=u,fill = variable),
+              data=mcmc_summary %>% 
+                mutate(group = forcats::fct_recode(variable, 
+                                     `SSB/B45cm+`="Spawningstock",
+                                     `SSB/B45cm+`="HCRrefbio",
+                                     `HR/F4-7`="HR",
+                                     `HR/F4-7`="RefF",
+                                     Landings="CalcCatchIn1000tons",
+                                     Landings="CatchIn1000tons",
+                                     Recruitment="N1st")),
+              alpha = 0.5) +
+  geom_line(aes(year,val,col = type)) + 
+  #geom_line(aes(year,val,col = type),lty=2,
+  #          data = old_rby %>% 
+  #            filter(type %in% c('ssb','refbio')) %>% 
+  #            mutate(type = ifelse(type == 'refbio','CbioR','SSB'))) +
+  geom_vline(xintercept = tyr,lty=2,col='gray') +
+  #geom_hline(yintercept = 45) + 
+  #geom_hline(yintercept = 59,lty=2) + 
+  #geom_label(data=data_frame(x=tyr + 2,y=45,label='Blim = 49 kt'),aes(x,y,label=label),col='black') +
+  #geom_label(data=data_frame(x=tyr + 2,y=59,label='Bpa = 59 kt'),aes(x,y,label=label),col='black') +
+  labs(x='Year',y='',col='') + 
+  expand_limits(y=0) + 
+  theme(legend.background = element_blank(),
+        strip.background = element_blank(),
+        legend.position = 'none') +
+  #scale_color_manual(values = c('red',rep(c('blue','red'),10))) +
+  #scale_fill_manual(values = rep(c('red','blue'),10)) +
+  facet_wrap(~group,scale='free_y')
 @
 
 
+
+
 \subsubsection{Model evaluation and alternative assessments}
-<<>>=
+<<icesplotalt, fig.width=10,fig.height=8,fig.cap='Haddock in 5a. Base model assessment compared with '>>=
+
+ fit$rby %>% 
+  #filter(model %in% c('logit_length','vpa'),year <= tyr) %>% 
+  filter(year <= tyr) %>% 
+  mutate(HR = CalcCatchIn1000tons/CbioR) %>% 
+  #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
+  select(model,year,Spawningstock,HCRrefbio=CbioR,HR,RefF,CalcCatchIn1000tons,CatchIn1000tons,N1st) %>% #,`B45cm+`) %>% 
+  gather(type,val,-c(year,model)) %>% 
+  mutate(group = forcats::fct_recode(type, 
+                                     `SSB/B45cm+`="Spawningstock",
+                                     `SSB/B45cm+`="HCRrefbio",
+                                     `HR/F4-7`="HR",
+                                     `HR/F4-7`="RefF",
+                                     Landings="CalcCatchIn1000tons",
+                                     Landings="CatchIn1000tons",
+                                     Recruitment="N1st")) %>% 
+  ggplot() + 
+  geom_ribbon(aes(year,ymin=l,ymax=u,fill = variable),
+              data=mcmc_summary %>% 
+                mutate(group = forcats::fct_recode(variable, 
+                                     `SSB/B45cm+`="Spawningstock",
+                                     `SSB/B45cm+`="HCRrefbio",
+                                     `HR/F4-7`="HR",
+                                     `HR/F4-7`="RefF",
+                                     Landings="CalcCatchIn1000tons",
+                                     Landings="CatchIn1000tons",
+                                     Recruitment="N1st")),
+              alpha = 0.5) +
+  geom_line(aes(year,val,col = type,lty=model)) + 
+  #geom_line(aes(year,val,col = type),lty=2,
+  #          data = old_rby %>% 
+  #            filter(type %in% c('ssb','refbio')) %>% 
+  #            mutate(type = ifelse(type == 'refbio','CbioR','SSB'))) +
+  geom_vline(xintercept = tyr,lty=2,col='gray') +
+  #geom_hline(yintercept = 45) + 
+  #geom_hline(yintercept = 59,lty=2) + 
+  #geom_label(data=data_frame(x=tyr + 2,y=45,label='Blim = 49 kt'),aes(x,y,label=label),col='black') +
+  #geom_label(data=data_frame(x=tyr + 2,y=59,label='Bpa = 59 kt'),aes(x,y,label=label),col='black') +
+  labs(x='Year',y='',col='') + 
+  expand_limits(y=0) + 
+  theme(legend.background = element_blank(),
+        strip.background = element_blank(),
+        legend.position = 'none') +
+  #scale_color_manual(values = c('red',rep(c('blue','red'),10))) +
+  #scale_fill_manual(values = rep(c('red','blue'),10)) +
+  facet_wrap(~group,scale='free_y')
+@
 
 @
 
 \subsection{Short term projection}
-<<>>=
-
+<<fig.width=10,fig.height=5,eval=FALSE>>=
+res_hcr_agg %>% 
+  filter(year %in% 2005:2030,rate >0.33,rate <= ref_points$HR_msy,variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  mutate(variable = forcats::fct_recode(variable, 
+                                        'Landings (in kt)' = 'CalcCatchIn1000tons',
+                                        'Recruitment' = 'N1st',
+                                        'F4-7' = 'RefF',
+                                        'HR' = 'HR',
+                                        'SSB' = 'Spawningstock',
+                                        'B45+' = 'HCRrefbio'))) %>% 
+  ggplot(aes(year,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() +
+  facet_grid(variable~rate,scale = 'free_y') + 
+  expand_limits(y=0) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Spawningstock'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Spawningstock'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_pa),col='red',lty=2) 
+  
 @
+
+<<fig.width=10,fig.height=5>>=
+res_hcr_agg %>% 
+  filter(year %in% 2005:2030,rate >0.33,
+         rate <= ref_points$HR_msy,
+         variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  ungroup() %>% 
+   mutate(variable = forcats::fct_recode(variable, 
+                                        'Landings (in kt)' = 'CalcCatchIn1000tons',
+                                        'Recruitment' = 'N1st',
+                                        'F4-7' = 'RefF',
+                                        'HR' = 'HR',
+                                        'SSB' = 'Spawningstock',
+                                        'B45+' = 'HCRrefbio')) %>% 
+  ggplot(aes(year,m,col=as.ordered(rate))) + 
+  geom_ribbon(aes(ymin=l,ymax=u,fill=as.ordered(rate))) +
+  #geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line(size = 0.5) +
+  #geom_line(aes(y=l),size = 0.5) +
+  #geom_line(aes(y=u),size = 0.5) +
+  geom_line(data  = res_hcr_agg %>% 
+              filter(year %in% 2005:2030,rate %in% c(0.34,0.4),
+                     variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+              ungroup() %>% 
+               mutate(variable = forcats::fct_recode(variable, 
+                                        'Landings (in kt)' = 'CalcCatchIn1000tons',
+                                        'Recruitment' = 'N1st',
+                                        'F4-7' = 'RefF',
+                                        'HR' = 'HR',
+                                        'SSB' = 'Spawningstock',
+                                        'B45+' = 'HCRrefbio')), 
+            aes(year,m,group=rate,lty=as.factor(rate)),lwd = 1,col='black') + 
+  facet_wrap(~variable, scale = 'free_y') + 
+  #facet_grid(variable~rate,scale = 'free_y') + 
+  expand_limits(y=0) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'SSB'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'SSB'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_pa),col='red',lty=2) +
+  theme(legend.position = 'none',
+        strip.background = element_blank()) + 
+  labs(x='Year',y='')
+  
+@
+
 
 \subsection{Appropriate referenct points (MSY)}
-<<>>=
+<<fig.width=5,fig.height=5>>=
+#ssb_rec_plot <- 
+  fit$rby %>% 
+  filter(year < tyr,model == 'logit_length') %>% 
+  group_by(model) %>% 
+  mutate(ssbl = lead(Spawningstock) ) %>% 
+  ggplot(aes(Spawningstock,Recruitment)) + 
+  geom_text(aes(label=ifelse(year>1999,year+1-2000,year + 1 - 1900))) +
+  geom_vline(xintercept = ref_points$b_lim,col='red') + 
+  geom_vline(xintercept = ref_points$b_pa,col='red',lty=2) + 
+  expand_limits(x=0, y=0) +
+  labs(x='SSB',y='Recruitment') +
+
+  read_csv('historical_retro.csv') %>% 
+  ggplot(aes(year,ssb)) + 
+  geom_line(lty=2) + 
+  geom_line(aes(y=ssb_true))+
+  expand_limits(y=0)+
+  theme_bw()+
+  labs(y='SSB',x='Year',title = 'Contemporary assessment of SSB compared with the most recent assessment')+
+  plot_layout(ncol=1)
 
 @
 
+
+<<fig.width=10,fig.height=5>>=
+fit$rby%>% 
+  filter(model %in% c('logit_length'),
+         year <= tyr) %>% 
+  mutate(HR = CalcCatchIn1000tons/CbioR) %>% 
+  select(year,#model,
+         #`Afli` = CalcCatchIn1000tons,
+         #`Nýliðun` = N1st,
+         #`Dánarstuðull` = RefF,
+         `HR` = HR,
+         `SSB` = Spawningstock) %>% 
+  gather(variable,value,-c(year)) %>% 
+  left_join(mcmc_summary %>% 
+              ungroup() %>% 
+              mutate(variable = forcats::fct_recode(variable, 
+                                                    'Landings (in kt)' = 'CalcCatchIn1000tons',
+                                                    'Recruitment' = 'N1st',
+                                                    'F4-7' = 'RefF',
+                                                    'HR' = 'HR',
+                                                    'SSB' = 'Spawningstock',
+                                                    'B45+' = 'HCRrefbio'))) %>% 
+  ggplot(aes(year,value)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() +
+    geom_hline(data=ref_points %>% mutate(variable = 'SSB'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'SSB'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_pa),col='red',lty=2) +
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_mgmt)) +
+  facet_wrap(~variable,scale='free_y') + 
+  expand_limits(y=0) + 
+  theme(legend.position = 'none',
+        strip.background = element_blank())+ 
+  labs(y='',x='Ár')
+
+@
+
+
+<<fig.width=10,fig.height=5>>=
+res_agg %>% 
+  filter(variable == 'CalcCatchIn1000tons',
+         year == 2060) %>% 
+  ggplot(aes(rate,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() + 
+  geom_vline(xintercept = ref_points$HR_mgmt) +
+  geom_vline(xintercept = ref_points$HR_msy) +
+  geom_vline(xintercept = ref_points$HR_pa,lty=2,col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_lim,col = 'red') + 
+  labs(title='Landings',x='HR',y='') +
+
+
+res_agg %>% 
+  filter(variable == 'Spawningstock',
+         year == 2060) %>% 
+  ggplot(aes(rate,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() + 
+  geom_hline(yintercept = ref_points$b_lim,col = 'red') + 
+  geom_hline(yintercept = ref_points$b_pa,lty=2, col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_mgmt) +
+  geom_vline(xintercept = ref_points$HR_msy) +
+  geom_vline(xintercept = ref_points$HR_pa,lty=2,col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_lim, col='red') + 
+  labs(title='SSB',x='HR',y='')
+
+@
+
+<<results='asis'>>=
+res_hcr_agg %>% 
+  filter(year==2060,rate >0.33,rate <= ref_points$HR_msy,variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  mutate(text = sprintf('%.2f (%.2f - %.2f)',m,l,u)) %>% 
+  select(rate,variable,text) %>% 
+  spread(variable,text) %>% 
+  left_join(hcr_below_ref_p %>% 
+              #filter(period != '2023 > Year > 2018') %>% 
+              select(rate,period,p3,p3_pa) %>% 
+              unite('p',c(p3, p3_pa), sep=' / ') %>% 
+              spread(period,p)) %>% 
+  ungroup() %>% 
+  select(-c(year,rate)) %>% 
+  select(`HR` = HR,
+         `Landings` = CalcCatchIn1000tons,
+         `SSB` = Spawningstock,
+         `Type 3 prob. 1st 5 years` = `2 023 > Year > 2018`,
+         `Type 3 prob. all years` = `Year > 2018`) %>% 
+  knitr::kable()
+@
+
+<<results='asis'>>=
+ref_points %>% select(b_loss:HR_lim) %>% knitr::kable()
+ref_points %>% select(-c(b_loss:HR_lim)) %>% knitr::kable()
+@
 \subsection{Evaluation of the proposed management plan}
 <<>>=
 
 @
 
-\bibliography{~/Documents/Greinar_d/library.bib}
+\bibliography{/home/sjor/bthe/Documents/Greinar_d/library.bib}
 \appendix
 \section{Survey at age}
 

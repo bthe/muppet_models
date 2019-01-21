@@ -1,6 +1,57 @@
 \documentclass[sansserif]{beamer} % options: gray
 
+<<setup, include=FALSE,echo=FALSE>>=
+#knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, error = FALSE,fig.width = 10, fig.height = 7)
+options(knitr.kable.NA = '')
+library(mar)
+library(patchwork)
+mar <- connect_mar()
+theme_set(theme_bw())
 
+@
+
+<<cache=TRUE>>=
+tyr <- 2018
+x <- 1
+#source('R/01-plots_and_tables.R')
+source('/u2/reikn/Tac/2018/02-ysa/R/02-management.R')
+#source('R/03-data_available.R')
+#source('R/04-indices4plot.R')
+#source('R/06-surveyplots.R')
+#source('R/07-catch_data.R')
+#source('R/08-model.R')
+
+#curr.lnd <- 
+#landings %>%
+#  filter(year==tyr-1) 
+#curr.lnd <- round(set_names(x = curr.lnd$c,nm = curr.lnd$country))
+load('../fit.Rdata')
+load('../res_agg.Rdata')
+load('../refpoint.Rdata')
+mcmc_summary <- 
+  fit$mcmc_results %>%
+  filter(variable %in% c('Spawningstock','N3','RefF','CalcCatchIn1000tons','HCRrefbio','N1st'),
+         year <= tyr) %>% 
+  bind_rows(fit$mcmc_results %>%
+              select(-filename) %>% 
+              filter(variable %in% c('CalcCatchIn1000tons','HCRrefbio'),year <= tyr) %>% 
+              spread(variable, value) %>% 
+              mutate(variable = 'HR',
+                     value = CalcCatchIn1000tons/HCRrefbio) %>% 
+              select(-c(CalcCatchIn1000tons,HCRrefbio))) %>% 
+  group_by(year,variable) %>% 
+  summarise(model = 'logit_length',
+            m=median(value), 
+            uu=quantile(value,0.75),
+            ll=quantile(value,0.25),
+            u=quantile(value,0.95),
+            l=quantile(value,0.05)) 
+
+
+
+
+@
 
 % HANDOUTS
 %\documentclass[handout,mathserif]{beamer} % options: gray
@@ -12,9 +63,9 @@
 \definecolor{hafroblar}{HTML}{0076a9}
 \definecolor{hafrograr}{HTML}{5c6670}
 \setbeamercolor*{palette primary}{use=structure,fg=white,bg=hafrograr!25}
-\setbeamercolor*{palette secondary}{use=structure,fg=white,bg=hafrograr!50}
-\setbeamercolor*{palette tertiary}{use=structure,fg=white,bg=hafroblar}
-\setbeamercolor*{palette quaternary}{fg=white,bg=hafrograr!25}
+\setbeamercolor*{palette secondary}{use=structure,fg=black,bg=hafrograr!50}
+\setbeamercolor*{palette tertiary}{use=structure,fg=black,bg=hafroblar}
+\setbeamercolor*{palette quaternary}{fg=black,bg=hafrograr!25}
 
 \setbeamercolor{frametitle}{bg=white,fg=hafrograr}
 \setbeamercolor{title}{bg=white,fg=hafroblar}
@@ -78,6 +129,17 @@ fadings,calc,trees,mindmap,shadows,decorations.text,patterns,positioning,shapes,
 \institute[Hafró]{Hafrannsóknastofnun}
 \beamertemplatenavigationsymbolsempty % fjerner pdf-indhold, til hvis der bare skal printes slides ud
 
+%gets rid of bottom navigation bars
+\setbeamertemplate{footline}[frame number]{}
+
+%gets rid of bottom navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+%gets rid of footer
+%will override 'frame number' instruction above
+%comment out to revert to previous/default definitions
+%\setbeamertemplate{footline}{}
+
 %\AtBeginSection[]{
 %\begin{frame}<beamer>
 %   \frametitle{What next...}
@@ -100,9 +162,595 @@ fadings,calc,trees,mindmap,shadows,decorations.text,patterns,positioning,shapes,
 \begin{tikzpicture}
 \node[inner sep=0pt] (matis) at (12,0)
     {\includegraphics[width=.25\textwidth]{hafro_logo}};
+\node[inner sep=0pt] (matis) at (0,0)
+    {\includegraphics[width=.25\textwidth]{../ysa.png}};
 
 \end{tikzpicture}
 }}
 
+
+\frame{
+\frametitle{Forsaga}
+\begin{columns}
+\begin{column}{0.7\linewidth}
+\bi Að fengnu áliti Alþjóðahafrannsóknaráðsins (ICES) var aflaregla íslenskra stjórnvalda sett fyrir ýsu á Íslandsmiðum árið 2013 og byggir ráðgjöf ICES á aflareglu íslenskra stjórnvalda. Ástand stofnsins, staða veiða og stofnmat eru svo rýnd innan vinnunefndar ICES (NWWG) á hverju ári.
+\item Núgildandi aflaregla er skilgreint sem veiðihlutfall viðmiðunarstofns í ráðgjafarári:
+ $$\textup{TAC}_{y/y+1} = 0.4 \times B_{45cm^+,y+1}$$
+
+\item Stofnmat undanfarinna ára hefur byggt á tölfræðilegu aldurs-aflalíkani (ADAPT) auk spár um vöxt einstakra aldurshópa milli úttektarárs og ráðgjafarárs. 
+ \item Erindi frá Atvinnu- og nýsköpunarráðuneyti  (ANR18100255/11.02.00) þess efnis að árangur og hugsanleg endurskoðun núgildandi aflareglu fyrir ýsu og ufsa verði metin/hafin
+\ei 
+\end{column}
+\begin{column}{0.3\linewidth}
+
+%\includegraphics[width=0.9\linewidth]{../ysa.png}
+
+\includegraphics[width=0.9\linewidth]{../saemundur.jpg}
+
+\includegraphics[width=0.9\linewidth]{../togari2.jpg}
+\end{column}
+\end{columns}
+
+}
+
+
+\frame{
+\frametitle{Ýsa -- Stjórnun veiða}
+\begin{columns}
+\begin{column}{0.5\linewidth}
+\bi Sókn í ýsu er stýrt með aflamarkskerfi, sem inleitt var að hluta 1984 og alfarið frá og með 1991
+\item Ólíkt þorski er tegundatilfærsla í ýsu leifð og hefur afli því verið í kringum 3 000 t umfram ráðlagt aflamark undanfarin ár
+\item Brottkast smáfiska er fyrir síðastliðin ár metið mjög lítið en var hæst um 5\% rétt eftir aldamót
+\item Miklar breytingar voru á útbreiðslu á ýsu á sama tíma
+ \ei
+<<fig.width=5,fig.height=2>>=
+  tbl(mar,'had_catch') %>% 
+  filter(year %in% c(1995,2010), year < tyr) %>% 
+  #filter(year %in% c(1990,1995,2000,2005,2010,2016)) %>% 
+  mar:::encode_zchords(dx=0.125*4,dy=0.0625*4) %>% 
+  #  select(-sq) %>% 
+  #  unite(sq,x,y,sep=':') %>% 
+  group_by(year,sq) %>% 
+  dplyr::summarise(catch=sum(catch)/(1e3*45.25277*1.852^2),
+                   effort=sum(towtime)) %>% 
+  collect(n=Inf) %>% 
+  separate(sq,c('lon','lat'),sep=':') %>% 
+  mutate(lon = gsub(',','.',lon) %>% as.numeric(),
+         lat = gsub(',','.',lat)%>% as.numeric()) %>% 
+  filter(!is.na(catch)) %>% 
+  #dplyr::mutate(catch = cut(catch/1e3, 
+  #                          breaks = c(-1,0.25,1,15,40,60,10000000),
+  #                          labels = c('< 0.25 kt','< 1 kt',
+  #                                     '< 15 kt','< 40 kt','< 60 kt','< 1000 kt'))) %>% 
+  ungroup() %>% 
+  ggplot() +
+  geom_raster(aes(lon, lat, fill = catch),interpolate = TRUE) + 
+  geom_polygon(data = geo::bisland, aes(lon, lat), fill = 'gray70',col='black') +
+  #  geom_polygon(data= fortify(greenland),  aes(long, lat,group=group), fill = 'gray70',col='black') +
+  #  geom_polygon(data= fortify(faroes),  aes(long, lat,group=group), fill = 'gray70',col='black') +
+  #geom_label(x=-18,y=65,aes(label=year),data=data_frame(year=1990:(tyr-1))) +
+  
+  #  geom_polygon(data=geo::eyjar, aes(lon, lat),col = 'black', fill = 'gray70',size = 0.3) +
+  #  geom_polygon(data=geo::faeroes, aes(lon, lat),col = 'black', fill = 'gray70')+
+  
+  geom_path(aes(lon, lat),data=geo::gbdypi.100,col='grey',size = 0.3) +
+  #  geom_path(data=gbdypi.800,lty=2,size = 0.3) +
+  #  geom_polygon(alpha=0.5,data=gbdypi.100,fill='gray90') +
+  #  geom_path(data=gbdypi.200,lty=2,size = 0.3) + #alpha=0.5,fill='gray90',
+  geom_path(aes(lon, lat),data=geo::gbdypi.500,col='grey',size = 0.3) +
+  geom_path(aes(lon, lat),data=geo::gbdypi.1000,col='grey',size = 0.3) +
+  
+  #  coord_quickmap( xlim=c(-75,-0),ylim=c(60,85)) +
+  #  scale_x_continuous(name = NULL, breaks = NULL) +
+  #  scale_y_continuous(name = NULL, breaks = NULL) +
+  labs(fill = "Catch (t)/nm2") +
+  scale_fill_continuous(type = "viridis", option = "B", direction = -1) +
+  #scale_fill_viridis_c(option = 'inferno',
+                       
+  #                     direction = -1,
+  #                     breaks = c(0.0001,0.05,0.8),
+  #                     trans='log') +
+  #  scale_fill_gradient2(low = "yellow", mid = "red",
+  #                       high = "black", midpoint = )+
+  theme_bw()+
+  coord_quickmap(xlim = c(-28, -12),ylim = c(63, 68))+
+  
+  #geom_path(data=fortify(ego),aes(long,lat,group=group))+
+  facet_wrap(~year,ncol=2)+ 
+  theme(#axis.text = element_text(size = 10),
+    plot.title = element_text(size = 14),
+    legend.background = element_rect(fill = "white"),
+    legend.position = 'none',
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.key.size= unit(0.5, 'cm'),
+    #legend.key = element_rect(colour = NA),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text = element_blank(),
+    panel.margin = unit(0,'cm'),
+    plot.margin = unit(c(0,0,0,0),'cm'),
+    strip.background = element_blank())
+@
+ 
+ 
+\end{column}
+\begin{column}{0.5\linewidth}
+
+<<advplot, cache=TRUE,echo = FALSE,message = FALSE, warning = FALSE,fig.width=8,fig.height=8,cache=TRUE>>=
+tmp <- 
+  tac_hist %>% 
+  mutate(yr = gsub('([0-9]+).+','\\1',Year) %>% as.numeric()) %>% 
+  filter(yr < 2014) %>% 
+  group_by(`ICES advice`) %>% 
+  filter(yr == min(yr))
+
+tmp <- 
+  data_frame(Year = c('1999/2000','2000/2001','2008/2009','2013/2014'),
+             type = c('F<Fmed','F<Fpa','F<0.35','Aflaregla'),
+             value = c(35000,30000,93000,38000))
+
+tac_hist %>% 
+  mutate(yr = gsub('([0-9]+).+','\\1',Year) %>% as.numeric(),
+         `ICES landings for the fishing year` = ifelse(is.na(`ICES landings for the fishing year`),
+                                                             `ICES landings for the calendar year`,
+                                                             `ICES landings for the fishing year`)) %>% 
+  filter(yr >1990) %>% 
+  select(Year, Aflamark=`Agreed TAC`,
+         `Landaður afli`=`ICES landings for the fishing year`) %>% 
+  gather(col,value,-Year) %>% 
+  ggplot() + geom_line(aes(Year,value/1e3,col=col,group=col))  + 
+  geom_point(data=tmp,aes(Year,value/1e3)) + 
+  ggrepel::geom_label_repel(data=tmp,aes(Year,value/1e3,label = type),
+                            arrow = arrow(length = unit(0.02, "npc")),
+                            force = 10,
+                            ylim = c(NA,25)) + 
+  theme_bw()+ 
+  labs(col='',x='',y='Afli (í þúsundum tonna)') + 
+  theme(legend.position = c(0.2,0.8),
+        legend.background = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) + 
+  scale_color_manual(values = c('red','blue'))+
+  expand_limits(y=0) +
+      mar:::kvoti_stada_summarised(mar) %>%
+  filter(fteg==2) %>% 
+  collect(n=Inf) %>% 
+  mutate(timabil = ifelse(str_sub(timabil,1,1) %in% "9",
+                          paste0(1900+as.integer(str_sub(timabil,1,2)),"/",str_sub(timabil,3)),
+                          paste0(2000+as.integer(str_sub(timabil,1,2)),"/",str_sub(timabil,3)))) %>% 
+  arrange(fteg, timabil) %>% 
+  head(-1) %>% 
+  ungroup() %>% 
+  mutate(#m_ara = n_ar,
+         m_p = 100*(m_ara-n_ar)/varanlegt,
+         til_p = 100*tilf/varanlegt,
+         m_ara = (m_ara-n_ar)/1e3,
+         tilf = tilf/1e3) %>% 
+  select(timabil,tilf,m_ara,
+         m_p,til_p) %>% 
+  gather(col,value,-timabil) %>%
+  filter(col %in% c('tilf','m_ara')) %>% 
+  mutate(col=ifelse(col=='m_ara','Milli ára',
+                    ifelse(col=='m_p','Milli ára (%)',
+                           ifelse(col=='tilf',' Milli tegunda',
+                                  ' Milli tegunda (%)')))) %>% 
+  ggplot(aes(timabil,value)) + geom_bar(stat='identity') + 
+  facet_wrap(~col,ncol=1,scale='free_y') + 
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        strip.background = element_blank()) +
+  labs(x='Fiskveiðiár',y='Tilfærslur (í tonnum)') +
+  plot_layout(ncol=1)
+
+@
+
+\end{column}
+\end{columns}
+
+}
+
+\frame{
+\frametitle{Staða stofnsins}
+\includegraphics[width=0.7\linewidth]{/u2/reikn/Tac/Astand18/Kaflar/02-Ysa/02-Haddock4pl.png}
+
+}
+
+
+\frame{
+\frametitle{Gæði stofnmatsins}
+\includegraphics[width=0.9\linewidth]{/u2/reikn/Tac/Astand18/Kaflar/02-Ysa/02-Hadretro.png}
+}
+
+
+
+\frame{
+\frametitle{Reynslan af aflareglunni}
+
+<<fig.width=10,fig.height=5>>=
+
+old_res_agg %>% 
+  filter(rate==0.4,year %in% 1995:(tyr)) %>% 
+  ungroup() %>% 
+  mutate(variable = forcats::fct_recode(variable, 
+                                        'Afli' = 'CalcCatchIn1000tons',
+                                        'Nýliðun' = 'N3',
+                                        'Dánarstuðull' = 'RefF',
+                                        'Hrygningarstofn' = 'Spawningstock')) %>% 
+  ggplot(aes(year,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line(col='gray') +
+  geom_line(data=fit$rby%>% 
+              filter(year %in% 1995:tyr) %>% 
+              filter(model == 'logit_length') %>% 
+              select(year,`Afli` = CalcCatchIn1000tons,
+                                        `Nýliðun` = N3,
+                                        `Dánarstuðull` = RefF,
+                                        `Hrygningarstofn` = Spawningstock) %>% 
+              gather(variable,m,-year),col='red') +
+  geom_vline(xintercept = 2012) +
+  expand_limits(y=0) +
+  facet_wrap(~variable,scale='free_y')+
+  theme(strip.background = element_blank()) + 
+  labs(y='',x='Ár')
+
+
+@
+
+
+}
+
+\frame{
+\frametitle{Staðan í dag -- samantekt}
+\bi Ástand ýsustofnsins er núna metið gott og innbyrðis samræmi er í stofnmatinu milli ára
+\item Þróun stofnsins og veiðanna frá árinu 2013 rýmar vel við spár sem settar voru fram þegar aflareglan var sett á árið 2013
+\item Aflareglan sett til fimm ára, því er kominn tími á endurskoðun á henni
+\ei
+\includegraphics[width=0.9\linewidth,trim={0 0 0 10cm},clip]{../ysa.png}
+
+}
+
+\frame{
+\frametitle{Breytingar í stofnmati og ráðgjöf við endurskoðun aflreglu}
+
+\bi Endurskoðun á stofnmatsaðferðum:
+\bi Tölfræðilegt aldursaflalíkan notað með metnu þyndgarháðu veiðimynstri 
+\ei
+
+\item Viðmiðunarpunktar eru endurskoðaðir/skilgreindir þar sem við á
+\bi Aðferðafræði ICES hefur tekið breytingum/orðið skýrari frá 2013
+\ei
+
+\item Mismunandi veiðihlutföll í aflareglunni voru einnig prófuð  
+\ei
+}
+
+\frame{
+\frametitle{Samanburður á stofnmati}
+<<fig.width=10,fig.height=5>>=
+fit$rby%>% 
+  filter(model %in% c('logit_length','vpa'),
+         year <= tyr) %>% 
+  mutate(HR = CalcCatchIn1000tons/CbioR) %>% 
+  select(year,model,
+         `Afli` = CalcCatchIn1000tons,
+         `Nýliðun` = N1st,
+         `Dánarstuðull` = RefF,
+         `Veiðihlutfall` = HR,
+         `Hrygningarstofn` = Spawningstock,
+         `Viðmiðunarstofn` = CbioR) %>% 
+  gather(variable,value,-c(year,model)) %>% 
+  left_join(mcmc_summary %>% 
+              ungroup() %>% 
+              mutate(variable = forcats::fct_recode(variable, 
+                                                    'Afli' = 'CalcCatchIn1000tons',
+                                                    'Nýliðun' = 'N1st',
+                                                    'Dánarstuðull' = 'RefF',
+                                                    'Veiðihlutfall' = 'HR',
+                                                    'Hrygningarstofn' = 'Spawningstock',
+                                                    'Viðmiðunarstofn' = 'HCRrefbio'))) %>% 
+  ggplot(aes(year,value,lty=model)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() +
+  facet_wrap(~variable,scale='free_y') + 
+  expand_limits(y=0) + 
+  theme(legend.position = 'none',
+        strip.background = element_blank()) + 
+  labs(x='Ár',y='')
+
+@
+
+
+}
+
+
+
+\frame{
+\frametitle{Ákvörðun viðmiðunarmarka og aflareglu}
+\begin{columns}
+\begin{column}{0.5\linewidth}
+
+\bi Viðmiðunarmörk voru metin með hermunum á ástandi ýsustofnsins og (sum) eru sértæk fyrir formi aflareglunnar
+\item Núgildandi aflaregla með mismunandi veiðihlutfalli (HR) var prófuð $$\textup{TAC}_{y/y+1} = \textup{HR} \times B_{45cm^+,y+1}$$
+\item Tekið var tillit til þátta eins og matskekkju, breytileika í nýliðun og þéttleikaháðs vaxtar. 
+\ei
+
+\end{column}
+\begin{column}{0.5\linewidth}
+<<fig.width=5,fig.height=5>>=
+#ssb_rec_plot <- 
+  fit$rby %>% 
+  filter(year < tyr,model == 'logit_length') %>% 
+  group_by(model) %>% 
+  mutate(ssbl = lead(Spawningstock) ) %>% 
+  ggplot(aes(ssbl,Recruitment)) + 
+  geom_text(aes(label=ifelse(year>1999,year+1-2000,year + 1 - 1900))) +
+  geom_vline(xintercept = ref_points$b_lim,col='red') + 
+  geom_vline(xintercept = ref_points$b_pa,col='red',lty=2) + 
+  expand_limits(x=0, y=0) +
+  labs(x='Hrygningarstofn',y='Nýliðun') +
+
+  read_csv('../historical_retro.csv') %>% 
+  ggplot(aes(year,ssb)) + 
+  geom_line(lty=2) + 
+  geom_line(aes(y=ssb_true))+
+  expand_limits(y=0)+
+  theme_bw()+
+  labs(y='Hrygningarstofn',x='Ár',title = 'Sögulegt mat úttektarári sbr. við metið ástand')+
+  plot_layout(ncol=1)
+
+@
+
+\end{column}
+\end{columns}
+}
+
+\frame{
+\frametitle{Viðmiðunarmörk}
+<<fig.width=10,fig.height=5>>=
+fit$rby%>% 
+  filter(model %in% c('logit_length'),
+         year <= tyr) %>% 
+  mutate(HR = CalcCatchIn1000tons/CbioR) %>% 
+  select(year,#model,
+         #`Afli` = CalcCatchIn1000tons,
+         #`Nýliðun` = N1st,
+         #`Dánarstuðull` = RefF,
+         `Veiðihlutfall` = HR,
+         `Hrygningarstofn` = Spawningstock) %>% 
+  gather(variable,value,-c(year)) %>% 
+  left_join(mcmc_summary %>% 
+              ungroup() %>% 
+              mutate(variable = forcats::fct_recode(variable, 
+                                                    'Afli' = 'CalcCatchIn1000tons',
+                                                    'Nýliðun' = 'N1st',
+                                                    'Dánarstuðull' = 'RefF',
+                                                    'Veiðihlutfall' = 'HR',
+                                                    'Hrygningarstofn' = 'Spawningstock',
+                                                    'Viðmiðunarstofn' = 'HCRrefbio'))) %>% 
+  ggplot(aes(year,value)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() +
+    geom_hline(data=ref_points %>% mutate(variable = 'Hrygningarstofn'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Hrygningarstofn'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Veiðihlutfall'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Veiðihlutfall'),
+             aes(yintercept = HR_pa),col='red',lty=2) +
+  geom_hline(data=ref_points %>% mutate(variable = 'Veiðihlutfall'),
+             aes(yintercept = HR_mgmt)) +
+  facet_wrap(~variable,scale='free_y') + 
+  expand_limits(y=0) + 
+  theme(legend.position = 'none',
+        strip.background = element_blank())+ 
+  labs(y='',x='Ár')
+
+@
+}
+
+\frame{
+\frametitle{Afraksturgeta og hrygningarstofn}
+<<fig.width=10,fig.height=5>>=
+res_agg %>% 
+  filter(variable == 'CalcCatchIn1000tons',
+         year == 2060) %>% 
+  ggplot(aes(rate,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() + 
+  geom_vline(xintercept = ref_points$HR_mgmt) +
+  geom_vline(xintercept = ref_points$HR_msy) +
+  geom_vline(xintercept = ref_points$HR_pa,lty=2,col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_lim,col = 'red') + 
+  labs(title='Afli',x='Veiðihlutfall',y='') +
+
+
+res_agg %>% 
+  filter(variable == 'Spawningstock',
+         year == 2060) %>% 
+  ggplot(aes(rate,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() + 
+  geom_hline(yintercept = ref_points$b_lim,col = 'red') + 
+  geom_hline(yintercept = ref_points$b_pa,lty=2, col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_mgmt) +
+  geom_vline(xintercept = ref_points$HR_msy) +
+  geom_vline(xintercept = ref_points$HR_pa,lty=2,col = 'red') + 
+  geom_vline(xintercept = ref_points$HR_lim, col='red') + 
+  labs(title='Hrygningarstofn',x='Veiðihlutfall',y='')
+
+@
+
+}
+
+\frame{
+\frametitle{Áhrif veiðihlutfalls til langs tíma}
+<<results='asis'>>=
+res_hcr_agg %>% 
+  filter(year==2060,rate %in% c(0.34,0.4),variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  mutate(text = sprintf('%.2f (%.2f - %.2f)',m,l,u)) %>% 
+  select(rate,variable,text) %>% 
+  spread(variable,text) %>% 
+  left_join(hcr_below_ref_p %>% 
+              #filter(period != '2023 > Year > 2018') %>% 
+              select(rate,period,p3,p3_pa) %>% 
+              unite('p',c(p3, p3_pa), sep=' / ') %>% 
+              spread(period,p)) %>% 
+  ungroup() %>% 
+  select(-c(year,rate)) %>% 
+  select(`Veiðihlutfall` = HR,
+         `Afli (kt)` = CalcCatchIn1000tons,
+         `Hrygningarstofn (kt)` = Spawningstock,
+         `Líkur 5 ár` = `2023 > Year > 2018`) %>% #,
+         #`Líkur öll ár` = `Year > 2018`) %>% 
+  knitr::kable()
+@
+
+
+}
+
+\frame{
+\frametitle{Áhrif veiðihlutfalls til skamms tíma}
+<<fig.width=10,fig.height=5,eval=FALSE>>=
+res_hcr_agg %>% 
+  filter(year %in% 2005:2030,rate >0.33,rate <= ref_points$HR_msy,variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+   mutate(variable = forcats::fct_recode(variable, 
+                                                    'Afli' = 'CalcCatchIn1000tons',
+                                                    'Nýliðun' = 'N1st',
+                                                    'Dánarstuðull' = 'RefF',
+                                                    'Veiðihlutfall' = 'HR',
+                                                    'Hrygningarstofn' = 'Spawningstock',
+                                                    'Viðmiðunarstofn' = 'HCRrefbio'))) %>% 
+  ggplot(aes(year,m)) + 
+  geom_ribbon(aes(ymin=l,ymax=u),fill='gold') +
+  geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line() +
+  facet_grid(variable~rate,scale = 'free_y') + 
+  expand_limits(y=0) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Spawningstock'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Spawningstock'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'HR'),
+             aes(yintercept = HR_pa),col='red',lty=2) 
+  
+@
+
+<<fig.width=10,fig.height=5>>=
+res_hcr_agg %>% 
+  filter(year %in% 2005:2030,rate >0.33,
+         rate <= ref_points$HR_msy,
+         variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  ungroup() %>% 
+   mutate(variable = forcats::fct_recode(variable, 
+                                                    'Afli' = 'CalcCatchIn1000tons',
+                                                    'Nýliðun' = 'N1st',
+                                                    'Dánarstuðull' = 'RefF',
+                                                    'Veiðihlutfall' = 'HR',
+                                                    'Hrygningarstofn' = 'Spawningstock',
+                                                    'Viðmiðunarstofn' = 'HCRrefbio')) %>% 
+  ggplot(aes(year,m,col=as.ordered(rate))) + 
+  geom_ribbon(aes(ymin=l,ymax=u,fill=as.ordered(rate))) +
+  #geom_ribbon(aes(ymin=ll,ymax=uu),fill='gray',alpha=0.3) +
+  geom_line(size = 0.5) +
+  #geom_line(aes(y=l),size = 0.5) +
+  #geom_line(aes(y=u),size = 0.5) +
+  geom_line(data  = res_hcr_agg %>% 
+              filter(year %in% 2005:2030,rate %in% c(0.34,0.4),
+                     variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+              ungroup() %>% 
+               mutate(variable = forcats::fct_recode(variable, 
+                                                    'Afli' = 'CalcCatchIn1000tons',
+                                                    'Nýliðun' = 'N1st',
+                                                    'Dánarstuðull' = 'RefF',
+                                                    'Veiðihlutfall' = 'HR',
+                                                    'Hrygningarstofn' = 'Spawningstock',
+                                                    'Viðmiðunarstofn' = 'HCRrefbio')),
+            aes(year,m,group=rate,lty=as.factor(rate)),lwd = 1,col='black') + 
+  facet_wrap(~variable, scale = 'free_y') + 
+  #facet_grid(variable~rate,scale = 'free_y') + 
+  expand_limits(y=0) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Hrygningarstofn'),
+             aes(yintercept = b_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Hrygningarstofn'),
+             aes(yintercept = b_pa),col='red',lty=2) + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Veiðihlutfall'),
+             aes(yintercept = HR_lim),col='red') + 
+  geom_hline(data=ref_points %>% mutate(variable = 'Veiðihlutfall'),
+             aes(yintercept = HR_pa),col='red',lty=2) +
+  theme(legend.position = 'none',
+        strip.background = element_blank()) + 
+  labs(x='Ár',y='')
+  
+@
+
+}
+
+\frame{
+\frametitle{Samantekt}
+\bi Niðurstöður hermana sýna að veiðihlutfall á bilinu 0.34 til 0.41 sé í samræmi við viðmið Alþjóða hafrannsóknaráðsins um bæði hámarksafrakstur og varúðarnálgun
+\item Af því leiðir að núverandi aflaregla stenst þessi viðmið
+\item Líkurnar á því að hrygningarstofninn fari niður fyrir gátmörk (B$_{pa}$) eru minni en 4\% til skemmri tíma en eykst nokkuð til lengri tíma litið (8\%)
+
+\item Til lengri tíma fæst sambærilegur afli (innan við 5\% munur) með veiðihlutfall upp á 0.34 samanborið við núverandi aflareglu, en með 13\% hærri hrygningarstofn
+\item Til skemmri tíma er munurinn fyrstu árin í kringum 10\% en fer hratt minnkandi og er komin niður fyrir 5\% 2025
+ 
+
+\ei
+
+}
+
+\frame{
+\frametitle{}
+
+{\centering 
+\Huge Spurningar?
+}
+}
+
+
+\frame{
+\frametitle{Áhrif veiðihlutfalls til langs tíma}
+<<results='asis'>>=
+res_hcr_agg %>% 
+  filter(year==2060,rate >0.33,rate <= ref_points$HR_msy,variable %in% c('HR','Spawningstock','CalcCatchIn1000tons')) %>% 
+  mutate(text = sprintf('%.2f (%.2f - %.2f)',m,l,u)) %>% 
+  select(rate,variable,text) %>% 
+  spread(variable,text) %>% 
+  left_join(hcr_below_ref_p %>% 
+              #filter(period != '2023 > Year > 2018') %>% 
+              select(rate,period,p3,p3_pa) %>% 
+              unite('p',c(p3, p3_pa), sep=' / ') %>% 
+              spread(period,p)) %>% 
+  ungroup() %>% 
+  select(-c(year,rate)) %>% 
+  select(`Veiðihlutfall` = HR,
+         `Afli` = CalcCatchIn1000tons,
+         `Hrygningarstofn` = Spawningstock,
+         `Líkur 5 ár` = `2023 > Year > 2018`,
+         `Líkur öll ár` = `Year > 2018`) %>% 
+  knitr::kable()
+@
+
+
+}
+\frame{
+\frametitle{Viðmiðunarpkt}
+<<results='asis'>>=
+ref_points %>% select(b_loss:HR_lim) %>% knitr::kable()
+ref_points %>% select(-c(b_loss:HR_lim)) %>% knitr::kable()
+@
+
+
+}
 \end{document}
 
