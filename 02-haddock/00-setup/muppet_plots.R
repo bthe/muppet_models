@@ -113,38 +113,30 @@ ices_plot_2 <-
 ssb_rec_plot <- 
   rby %>% 
   filter(year < tyr) %>% 
-  group_by(model) %>% 
-  mutate(ssbl = lead(Spawningstock) ) %>% 
-  ggplot(aes(ssbl,Recruitment)) + geom_text(aes(label=year-1)) + 
+ # group_by(model) %>% 
+#  mutate(ssbl = lead(Spawningstock) ) %>% 
+  ggplot(aes(Spawningstock,Recruitment)) + geom_text(aes(label=year-1)) + 
   expand_limits(x=0, y=0) + 
   facet_wrap(~model)
 
 
-mcmc_results %>% 
-  filter(filename == 'parameter',
-         !(variable %in% c('AbundanceMultiplier','Catchlogitage50','Catchlogitslope')),
-         !(year %in% 5:6)) %>% 
-  mutate(value = ifelse(variable == 'estSSBRecParameters',exp(value),value),
-         variable = ifelse(variable == 'estSSBRecParameters',
-                           forcats::fct_recode(as.character(year),
-                                               Rmax="1",ssbbreak = "2",
-                                               `Recruitment CV`='3',
-                                               rho='4') %>% as.character(),
-                           variable)) %>% 
-  ggplot(aes(value)) + geom_histogram() + facet_wrap(~variable,scale='free')
+fit$mcmc_results %>% 
+  filter(filename=='parameter', !(variable %in% 5:6)) %>% 
+  ggplot(aes(value)) + 
+  geom_histogram(fill='gray',aes(y=..count../sum(..count..))) + 
+  geom_vline(data = fit$params %>% 
+               filter(model == 'logit_length', 
+                      !(name %in% c('lnRecr','lnInitialpop','lnEffort')),
+                      !grepl('Survey|survey|RefF|Spawning',name)),
+             aes(xintercept=value)) +
+  facet_wrap(~variable,scale='free',ncol=3) +
+  theme(strip.background = element_blank()) + 
+  labs(x='Parameter value',y='% MCMC replicates')
+  
 
 
-mcmc_results %>% 
-  filter(filename == 'parameter',
-         !(variable %in% c('AbundanceMultiplier','Catchlogitage50','Catchlogitslope')),
-         !(year %in% 5:6)) %>% 
-  mutate(value = ifelse(variable == 'estSSBRecParameters',exp(value),value),
-         variable = ifelse(variable == 'estSSBRecParameters',
-                           forcats::fct_recode(as.character(year),
-                                               Rmax="1",ssbbreak = "2",
-                                               `Recruitment CV`='3',
-                                               rho='4') %>% as.character(),
-                           variable)) %>% 
+fit$mcmc_results %>% 
+  filter(filename == 'parameter', !(variable %in% 5:6)) %>% 
   select(iter,variable, value) %>% 
   spread(variable,value) %>%
   select(-iter) %>% 

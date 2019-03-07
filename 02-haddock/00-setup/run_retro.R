@@ -1,6 +1,6 @@
 retro_dir <- paste(md,'retro',sep='/')
 fs::dir_create(retro_dir)
-num_peels <- 10
+num_peels <- 20
 
 for(retro in 1:num_peels){
 
@@ -27,11 +27,55 @@ for(retro in 1:num_peels){
 retro.fit <- list(rby = read_output('resultsbyyear',retro_dir),
                   rbyage = read_output('resultsbyyearandage',retro_dir) %>% 
                     mutate(CalcCno = ifelse(model == 'vpa',NA,CalcCno)),
-                  rbage = read_output('resultsbyage',retro_dir))
+                  rbage = read_output('resultsbyage',retro_dir),
+                  params = read_output('params',retro_dir))
+
+
+mohnsrho <- 
+  retro.fit$rby %>% 
+ 
+  mutate(ass.year = tyr - as.numeric(gsub('r_','',model)),
+         HR = CalcCatchIn1000tons/CbioR) %>% 
+  rename(HCRrefbio = CbioR) %>% 
+  gather(type,val,-c(model,year,ass.year)) %>% 
+  left_join(fit$rby %>% 
+              filter(model == 'logit_length') %>% 
+              mutate(ass.year = tyr - as.numeric(gsub('r_','',model)),
+                     HR = CalcCatchIn1000tons/CbioR) %>% 
+              rename(HCRrefbio = CbioR) %>% 
+              select(-model) %>% 
+              gather(type,last_val,-year)) %>% 
+  na.omit() %>% 
+  #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
+  #select(model,year,ass.year,Spawningstock,HCRrefbio=CbioR,HR,RefF,CalcCatchIn1000tons,CatchIn1000tons,N1st) %>% #,`B45cm+`) %>% 
+  mutate(group = forcats::fct_recode(type, 
+                                     `SSB`="Spawningstock",
+                                     `B45cm+`="HCRrefbio",
+                                     `HR`="HR",
+                                     `F4-7`="RefF",
+                                     Landings="CalcCatchIn1000tons",
+                                     Landings="CatchIn1000tons",
+                                     Recruitment="N1st"),
+         fill_group = forcats::fct_recode(type, 
+                                          `1`="Spawningstock",
+                                          `1`="HCRrefbio",
+                                          `1`="HR",
+                                          `1`="RefF",
+                                          `1`="CalcCatchIn1000tons",
+                                          `2`="CatchIn1000tons",
+                                          `1`="N1st")) %>% 
+  filter(year == ifelse(fill_group %in% c('F4-7','HR','Landings'),ass.year -1 , ass.year)) %>% 
+  filter(ass.year>tyr-6) %>% 
+  mutate(relbias = (val - last_val)/last_val) %>% 
+  group_by(group,type) %>% 
+  summarise(rho = mean(relbias))
+
+save(retro.fit, mohnsrho,file='02-haddock/99-docs/retrofit.Rdata')
 
 
 retro.fit$rby %>% 
   mutate(ass.year = 1 + tyr - as.numeric(gsub('r_','',model))) %>% 
+  
   #filter(model %in% c('logit_length','vpa'),year <= tyr) %>% 
   filter(year <= ass.year) %>% 
   #mutate(`B45cm+`= lag(RefBio1,1)) %>% 

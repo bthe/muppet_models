@@ -21,8 +21,12 @@ retro %>%
   left_join(retro %>% 
               filter(AssessmentYear == 2018) %>% 
               select(year=Year,rec_true=recruitment,ssb_true=SSB, F_true=F)) %>% 
-  as_data_frame() %>% 
+  as_data_frame() -> hist_retro 
+
+hist_retro %>% 
   filter(year == assyear-1) %>% write_csv('02-haddock/99-docs/historical_retro.csv')
 ggplot(aes(year,ssb)) + geom_line(lty=2) + geom_line(aes(y=ssb_true))
 
+
+save(hist_retro, file='02-haddock/99-docs/hist_retro.Rdata')
 

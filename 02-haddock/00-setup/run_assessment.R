@@ -25,10 +25,21 @@ clean_up <- function(app='vpa'){
 }
 
 
-## 
+## overall setup 
 readr::read_lines(paste(md,'params','icehad.dat.opt',sep='/')) %>% 
   stringr::str_remove('../') %>% 
   readr::write_lines(paste(md,'params','icehad.dat.opt',sep='/'))
+
+readr::read_lines(paste(md,'Files','autsurveypar.dat',sep='/')) %>% 
+  rmuppet:::line_replace('0.392226 0.295314 0.180818 0.179292 0.251839 0.233800 0.383959 0.419390 0.407381',
+                         '#pattern in CV with age. Common multiplier estimated') %>% 
+  readr::write_lines(paste(md,'Files','autsurveypar.dat',sep='/'))
+
+readr::read_lines(paste(md,'Files','marsurveypar.dat',sep='/')) %>% 
+  rmuppet:::line_replace('0.335784 0.337252 0.273987 0.264007 0.256767 0.345298 0.327136 0.344655 0.345801 0.307099',
+                         '#pattern in CV with age. Common multiplier estimated') %>% 
+  readr::write_lines(paste(md,'Files','marsurveypar.dat',sep='/'))
+
 
 ## output control
 
