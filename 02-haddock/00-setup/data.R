@@ -25,9 +25,11 @@ rby <-
 write('# year age cno cwt swt mat ssbwt',
       file = paste(md,'Files/catchandstockdata.dat',sep = '/'))
 dat %>% 
-  select(year,age,cno=catage,cwt=wcatch,swt=wstock,mat=maturity,ssbwt=wstock) %>% 
+  mutate(ssbwt = wstock) %>% 
+  select(year,age,cno=catage,cwt=wcatch,swt=wstock,mat=maturity,ssbwt) %>% 
   write_delim(paste(md,'Files/catchandstockdata.dat',sep = '/'),
               col_names = FALSE, 
+              delim = '\t',
               append = TRUE)
   
 ## write totcatch

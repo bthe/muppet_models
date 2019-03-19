@@ -6,7 +6,6 @@ library(tidyverse)
 #  set_names(.,tolower(names(.))) %>% 
 #  gather(type,val, -year)
 
-theme_set(theme_bw())
 tyr <- 2018
 out_dir <- paste(md,'out',sep='/')
  
@@ -39,6 +38,12 @@ readr::read_lines(paste(md,'Files','marsurveypar.dat',sep='/')) %>%
   rmuppet:::line_replace('0.335784 0.337252 0.273987 0.264007 0.256767 0.345298 0.327136 0.344655 0.345801 0.307099',
                          '#pattern in CV with age. Common multiplier estimated') %>% 
   readr::write_lines(paste(md,'Files','marsurveypar.dat',sep='/'))
+
+readr::read_lines(paste(md,'Files','optim.dat.hockey',sep='/')) %>% 
+  rmuppet:::line_replace('15	      5.3        0.1   -0.7    1        1.0',
+                         '#upper bound changed on acf') %>% 
+  readr::write_lines(paste(md,'Files','optim.dat.hockey',sep='/'))
+
 
 
 ## output control

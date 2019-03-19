@@ -25,8 +25,11 @@ old_res_agg <-
             u = quantile(value,0.95,na.rm = TRUE),
             uu = quantile(value,0.75,na.rm = TRUE),
             ll = quantile(value,0.25,na.rm = TRUE),
-            l  = quantile(value,0.05,na.rm = TRUE)) 
-
+            l  = quantile(value,0.05,na.rm = TRUE),
+            r1 = value[100],
+            r2 = value[200],
+            r3 = value[300]) 
+old_res <- list(res=old_res,res_agg = old_res_agg)
 
 
 old_res %>% 

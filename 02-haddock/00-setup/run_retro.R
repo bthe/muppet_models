@@ -19,35 +19,44 @@ for(retro in 1:num_peels){
   ## Statistical catch-at-age models:
   ## Size based selection (logit on weight-at-age) tuned with both surveys
   
-  
   callMuppet(ind=sprintf('params/icehad.dat.r_%s',retro),'nox',run_dir = md)
-  
+  if(fs::file_exists(paste(md,'muppet.std',sep='/')))
+    fs::file_move(paste(md,'muppet.std',sep='/'),
+                sprintf('%s/params.r_%s',retro_dir,retro))
 }
 
 retro.fit <- list(rby = read_output('resultsbyyear',retro_dir),
                   rbyage = read_output('resultsbyyearandage',retro_dir) %>% 
                     mutate(CalcCno = ifelse(model == 'vpa',NA,CalcCno)),
                   rbage = read_output('resultsbyage',retro_dir),
-                  params = read_output('params',retro_dir))
+                  params = read_output('params',retro_dir) %>% 
+                    mutate(value = ifelse(grepl('ln|log|estSSBRecParameters',name),exp(value),value),
+                           variable = gsub('ln|log','',name) %>% 
+                             gsub('([a-zA-Z]+)\\[([0-9])\\]','\\1.\\2',.),
+                           variable = ifelse(grepl('estSSBRecParameters',variable),
+                                             forcats::fct_recode(gsub('estSSBRecParameters.','',variable,fixed = TRUE),
+                                                                 Rmax="1",ssbbreak = "2",
+                                                                 `Recruitment CV`='3',
+                                                                 rho='4') %>% as.character(),
+                                             variable)))
 
 
 mohnsrho <- 
   retro.fit$rby %>% 
- 
-  mutate(ass.year = tyr - as.numeric(gsub('r_','',model)),
+  mutate(assyear = tyr - as.numeric(gsub('r_','',model)),
          HR = CalcCatchIn1000tons/CbioR) %>% 
   rename(HCRrefbio = CbioR) %>% 
-  gather(type,val,-c(model,year,ass.year)) %>% 
+  gather(type,val,-c(model,year,assyear)) %>% 
   left_join(fit$rby %>% 
               filter(model == 'logit_length') %>% 
-              mutate(ass.year = tyr - as.numeric(gsub('r_','',model)),
+              mutate(assyear = tyr,
                      HR = CalcCatchIn1000tons/CbioR) %>% 
               rename(HCRrefbio = CbioR) %>% 
               select(-model) %>% 
               gather(type,last_val,-year)) %>% 
   na.omit() %>% 
   #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
-  #select(model,year,ass.year,Spawningstock,HCRrefbio=CbioR,HR,RefF,CalcCatchIn1000tons,CatchIn1000tons,N1st) %>% #,`B45cm+`) %>% 
+  #select(model,year,assyear,Spawningstock,HCRrefbio=CbioR,HR,RefF,CalcCatchIn1000tons,CatchIn1000tons,N1st) %>% #,`B45cm+`) %>% 
   mutate(group = forcats::fct_recode(type, 
                                      `SSB`="Spawningstock",
                                      `B45cm+`="HCRrefbio",
@@ -64,8 +73,8 @@ mohnsrho <-
                                           `1`="CalcCatchIn1000tons",
                                           `2`="CatchIn1000tons",
                                           `1`="N1st")) %>% 
-  filter(year == ifelse(fill_group %in% c('F4-7','HR','Landings'),ass.year -1 , ass.year)) %>% 
-  filter(ass.year>tyr-6) %>% 
+  filter(year == ifelse(group %in% c('F4-7','HR','Landings'),assyear -1 , assyear)) %>% 
+  filter(assyear>tyr-6) %>% 
   mutate(relbias = (val - last_val)/last_val) %>% 
   group_by(group,type) %>% 
   summarise(rho = mean(relbias))
@@ -74,10 +83,10 @@ save(retro.fit, mohnsrho,file='02-haddock/99-docs/retrofit.Rdata')
 
 
 retro.fit$rby %>% 
-  mutate(ass.year = 1 + tyr - as.numeric(gsub('r_','',model))) %>% 
+  mutate(assyear = tyr - as.numeric(gsub('r_','',model))) %>% 
   
   #filter(model %in% c('logit_length','vpa'),year <= tyr) %>% 
-  filter(year <= ass.year) %>% 
+  filter(year <= assyear) %>% 
   #mutate(`B45cm+`= lag(RefBio1,1)) %>% 
   select(model,year,SSB=Spawningstock,CbioR) %>% #,`B45cm+`) %>% 
   gather(type,val,-c(year,model)) %>% 

@@ -11,12 +11,12 @@ b_ref <-
   filter(model == 'logit_length') %>% 
   summarise(b_loss=min(Spawningstock),
             b_lim = b_loss,
-            b_pa = b_lim*exp(1.645*0.17)) 
+            b_pa = b_lim*exp(1.645*0.15)) 
 
 
 ## calulate probabilities 
 hcr_below_ref_p <-
-  res_hcr %>% 
+  res_assimpl_error$res %>% 
   filter(variable == 'Spawningstock',year>tyr) %>% 
   group_by(rate,year) %>% 
   summarise(p = mean(value < b_ref$b_lim),
@@ -26,7 +26,7 @@ hcr_below_ref_p <-
             p3 = max(p),
             p1_pa = mean(p_pa),
             p3_pa = max(p_pa)) %>% 
-  left_join(res_hcr %>% 
+  left_join(res_assimpl_error$res %>% 
               filter(variable == 'Spawningstock',year>tyr) %>% 
               group_by(rate,iter) %>% 
               summarise(below = max(value < b_ref$b_lim),
@@ -35,7 +35,7 @@ hcr_below_ref_p <-
               summarise(p2 = mean(below),
                         p2_pa = mean(below_pa))) %>%  
   mutate(period = 'Year > 2018') %>% 
-  bind_rows(res_hcr %>% 
+  bind_rows(res_assimpl_error$res %>% 
               filter(variable == 'Spawningstock',year %in% tyr:(tyr+5)) %>% 
               group_by(rate,year) %>% 
               summarise(p = mean(value < b_ref$b_lim),
@@ -45,7 +45,7 @@ hcr_below_ref_p <-
                         p3 = max(p),
                         p1_pa = mean(p_pa),
                         p3_pa = max(p_pa)) %>% 
-              left_join(res_hcr %>% 
+              left_join(res_assimpl_error$res %>% 
                           filter(variable == 'Spawningstock', year %in% tyr:(tyr+5)) %>% 
                           group_by(rate,iter) %>% 
                           summarise(below = max(value < b_ref$b_lim),
@@ -68,26 +68,26 @@ yield_by_rate <-
 hcr_rate <- 0.4
 
 F_lim <- 
-  res_no_trigger_agg %>% 
-  filter(year==2060,variable=='RefF') %>% 
-  semi_join(res_no_trigger_agg %>%
+  res_agg %>% 
+  filter(year==2060,variable=='RefF',btrigger == 5) %>% 
+  semi_join(res_agg %>%
               ungroup() %>% 
-              filter(variable == 'Spawningstock',year == 2060, m>49) %>% 
+              filter(variable == 'Spawningstock',year == 2060, m>b_ref$b_lim,btrigger == 5) %>% 
               tail(1) %>% 
               select(rate))
 
 F_pa <- 
-  res_no_trigger_agg %>% 
-  filter(year==2060,variable=='RefF') %>% 
-  semi_join(res_no_trigger_agg %>%
+  res_agg %>% 
+  filter(year==2060,variable=='RefF', btrigger == 5) %>% 
+  semi_join(res_agg %>%
               ungroup() %>% 
-              filter(variable == 'RefF',year == 2060, m<F_lim$m/1.4) %>% 
+              filter(variable == 'RefF',year == 2060, m<F_lim$m/1.4,btrigger == 5) %>% 
               tail(1) %>% 
               select(rate))
 
 F_p5 <- 
-  res_no_trigger_agg %>% 
-  filter(year==2060,variable=='RefF') %>% 
+  res_agg %>% 
+  filter(year==2060,variable=='RefF',btrigger == 55.1, impl_error==FALSE) %>% 
   semi_join(hcr_below_ref_p %>% 
               #group_by(period) %>% 
               filter(period == 'Year > 2018',p3<0.05) %>% 

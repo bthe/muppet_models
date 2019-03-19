@@ -3,7 +3,7 @@ library(rmuppet)
 library(fs)
 
 ## setup the model 
-md <- '02-haddock/01-firsttry'
+md <- '02-haddock/02-updated'
 dir.create(md,showWarnings = FALSE)
 
 fs::dir_create(paste(md,'params',sep='/'))
